@@ -16,11 +16,11 @@ export default function AddExpenseScreen() {
   const router = useRouter();
 
   const categories = [
-    { label: '🥦 Health is Wealth', sub: 'Sabkbhaji & Fruits', value: 'Sakbhaji and fruits', color: '#10B981' },
-    { label: '⛽ Liquid Gold', sub: 'Petrol & Diesel', value: 'Petrol and diesel', color: '#3B82F6' },
-    { label: '🥛 Moo Juice', sub: 'Milk', value: 'Milk', color: '#8B5CF6' },
-    { label: '🥨 Snack Attack!', sub: 'Nasto / Fast Food', value: 'Nasto', color: '#F59E0B' },
-    { label: '💸 Mystery Spend', sub: 'Everything else...', value: 'Other', color: '#6B7280' },
+    { label: 'Sabkbhaji & Fruits', sub: 'Healthy stuff', value: 'Sakbhaji and fruits', color: '#10B981' },
+    { label: 'Petrol & Diesel', sub: 'Fuel for transport', value: 'Petrol and diesel', color: '#3B82F6' },
+    { label: 'Milk', sub: 'Daily dairy', value: 'Milk', color: '#8B5CF6' },
+    { label: 'Nasto', sub: 'Snacks & Fast food', value: 'Nasto', color: '#F59E0B' },
+    { label: 'Other', sub: 'Miscellaneous', value: 'Other', color: '#6B7280' },
   ];
 
   const selectedCat = categories.find(c => c.value === category) || categories[0];
@@ -156,7 +156,7 @@ export default function AddExpenseScreen() {
               style={[styles.inputBox, { color: '#FFFFFF' }]}
               value={description}
               onChangeText={setDescription}
-              placeholder="Common item name..."
+              placeholder="Enter item name..."
               placeholderTextColor="#525252"
             />
           </View>
@@ -197,7 +197,7 @@ export default function AddExpenseScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Choose your poison! 🥂</Text>
+              <Text style={styles.modalTitle}>Choose Category</Text>
               <TouchableOpacity onPress={() => setShowCategoryModal(false)}>
                 <Ionicons name="close" size={24} color="#FFFFFF" />
               </TouchableOpacity>
