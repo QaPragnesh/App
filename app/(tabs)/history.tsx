@@ -9,6 +9,7 @@ export default function HistoryScreen() {
 
   const categories = [
     { label: 'All', value: 'All' },
+    { label: '🛒 Grocery', value: 'Grocery' },
     { label: '🥦 Sabkbhaji', value: 'Sakbhaji and fruits' },
     { label: '⛽ Petrol', value: 'Petrol and diesel' },
     { label: '🥛 Milk', value: 'Milk' },
@@ -18,6 +19,7 @@ export default function HistoryScreen() {
 
   const getCategoryIcon = (category: string) => {
     switch (category) {
+      case 'Grocery': return '🛒';
       case 'Sakbhaji and fruits': return '🥬';
       case 'Petrol and diesel': return '⛽';
       case 'Milk': return '🥛';

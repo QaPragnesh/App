@@ -34,8 +34,9 @@ export default function DashboardScreen() {
     categoryTotals[e.category] = (categoryTotals[e.category] || 0) + e.amount;
   });
 
-  const categoriesOrdered = ['Sakbhaji and fruits', 'Petrol and diesel', 'Milk', 'Nasto', 'Other'];
+  const categoriesOrdered = ['Grocery', 'Sakbhaji and fruits', 'Petrol and diesel', 'Milk', 'Nasto', 'Other'];
   const categoryColors: Record<string, string> = {
+    'Grocery': '#EC4899',             // pink
     'Sakbhaji and fruits': '#8B5CF6', // purple
     'Petrol and diesel': '#3B82F6',   // blue
     'Milk': '#10B981',                // green

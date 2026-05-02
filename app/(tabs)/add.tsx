@@ -9,13 +9,14 @@ export default function AddExpenseScreen() {
   const [date, setDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
-  const [category, setCategory] = useState('Sakbhaji and fruits');
+  const [category, setCategory] = useState('Grocery');
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
   const { addExpense, monthlyBudget, expenses } = useExpenses();
   const router = useRouter();
 
   const categories = [
+    { label: 'Grocery', sub: 'Daily essentials', value: 'Grocery', color: '#EC4899' },
     { label: 'Sabkbhaji & Fruits', sub: 'Healthy stuff', value: 'Sakbhaji and fruits', color: '#10B981' },
     { label: 'Petrol & Diesel', sub: 'Fuel for transport', value: 'Petrol and diesel', color: '#3B82F6' },
     { label: 'Milk', sub: 'Daily dairy', value: 'Milk', color: '#8B5CF6' },
