@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { useExpenses } from '../../hooks/useExpenses';
 import { Ionicons } from '@expo/vector-icons';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function BudgetSetupScreen() {
   const { monthlyBudget, setMonthlyBudget, expenses } = useExpenses();
@@ -11,13 +12,13 @@ export default function BudgetSetupScreen() {
     setBudgetInput(monthlyBudget.toString());
   }, [monthlyBudget]);
 
-  const handleSaveBudget = () => {
+  const handleSaveBudget = async () => {
     const amount = parseFloat(budgetInput);
     if (isNaN(amount) || amount <= 0) {
       Alert.alert('Invalid Input', 'Please enter a valid budget amount.');
       return;
     }
-    setMonthlyBudget(amount);
+    await setMonthlyBudget(amount);
     Alert.alert('Success', 'Monthly budget limit updated!');
   };
 
@@ -49,7 +50,16 @@ export default function BudgetSetupScreen() {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <KeyboardAvoidingView 
+      style={{ flex: 1 }} 
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <ScrollView 
+          style={styles.container} 
+          contentContainerStyle={[styles.content, { paddingBottom: 100 }]}
+          keyboardShouldPersistTaps="handled"
+        >
       <Text style={styles.headerTitle}>Budget Setup</Text>
 
       {/* Modern Budget Limit Card */}
@@ -113,6 +123,8 @@ export default function BudgetSetupScreen() {
         </View>
       </View>
     </ScrollView>
+    </SafeAreaView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -123,7 +135,6 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 20,
-    paddingTop: 60,
   },
   headerTitle: {
     fontSize: 24,

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, ScrollView } from 'react-native';
 import { useExpenses } from '../../hooks/useExpenses';
 import { Ionicons } from '@expo/vector-icons';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function HistoryScreen() {
   const { expenses, deleteExpense } = useExpenses();
@@ -82,7 +83,7 @@ export default function HistoryScreen() {
   const currentMonthName = new Date().toLocaleString('default', { month: 'short', year: 'numeric' });
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.headerContainer}>
         <View style={styles.headerCard}>
           <View style={styles.headerLeft}>
@@ -123,7 +124,10 @@ export default function HistoryScreen() {
         data={sortedExpenses}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[
+          styles.listContent, 
+          { paddingBottom: 100 }
+        ]}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyText}>No entries found for this filter.</Text>
@@ -137,7 +141,7 @@ export default function HistoryScreen() {
           ) : null
         }
       />
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -148,7 +152,6 @@ const styles = StyleSheet.create({
   },
   headerContainer: {
     padding: 16,
-    paddingTop: 50,
   },
   headerCard: {
     backgroundColor: '#262626', // Dark card
@@ -221,7 +224,6 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingHorizontal: 16,
-    paddingBottom: 100,
   },
   card: {
     backgroundColor: '#262626',

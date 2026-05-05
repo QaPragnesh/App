@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView, Dimensions } from 'react-native';
 import { useExpenses } from '../../hooks/useExpenses';
 import { Ionicons } from '@expo/vector-icons';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -67,7 +68,11 @@ export default function DashboardScreen() {
   const maxMonthlyAmount = Math.max(...activeMonthlyTotals.map(m => m.total), 1);
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <ScrollView 
+        style={styles.container} 
+        contentContainerStyle={[styles.content, { paddingBottom: 100 }]}
+      >
       
       {/* Overview Top Card */}
       <View style={styles.overviewHeaderCard}>
@@ -167,6 +172,7 @@ export default function DashboardScreen() {
       )}
 
     </ScrollView>
+    </SafeAreaView>
   );
 }
 
@@ -177,8 +183,6 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 16,
-    paddingTop: 50,
-    paddingBottom: 40,
   },
   overviewHeaderCard: {
     flexDirection: 'row',

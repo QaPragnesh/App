@@ -4,6 +4,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { useExpenses } from '../../hooks/useExpenses';
 import { useRouter } from 'expo-router';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function AddExpenseScreen() {
   const [date, setDate] = useState(new Date());
@@ -83,10 +84,15 @@ export default function AddExpenseScreen() {
   return (
     <KeyboardAvoidingView 
       style={{ flex: 1 }} 
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
     >
-      <ScrollView style={styles.container} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <ScrollView 
+          style={styles.container} 
+          contentContainerStyle={[styles.content, { paddingBottom: 100 }]}
+          keyboardShouldPersistTaps="handled"
+        >
         
         {/* Header Card */}
         <View style={styles.headerCard}>
@@ -187,6 +193,7 @@ export default function AddExpenseScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
+    </SafeAreaView>
 
       {/* Funny Category Modal */}
       <Modal
@@ -242,8 +249,6 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 16,
-    paddingTop: 50,
-    paddingBottom: 40,
   },
   headerCard: {
     backgroundColor: '#E6FFFA',

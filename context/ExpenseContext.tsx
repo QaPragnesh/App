@@ -34,9 +34,22 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
     try {
       setLoading(true);
 
-      // Load budget from AsyncStorage (keeping it local for now or you can move to Supabase too)
-      const storedBudget = await AsyncStorage.getItem('@budget');
-      if (storedBudget) setMonthlyBudgetState(Number(storedBudget));
+      // Load budget from Supabase
+      const { data: budgetData, error: budgetError } = await supabase
+        .from('budgets')
+        .select('amount')
+        .order('id', { ascending: true })
+        .limit(1)
+        .single();
+
+      if (!budgetError && budgetData) {
+        setMonthlyBudgetState(budgetData.amount);
+        await AsyncStorage.setItem('@budget', budgetData.amount.toString());
+      } else {
+        // Fallback to local storage if Supabase fails or isn't set up
+        const storedBudget = await AsyncStorage.getItem('@budget');
+        if (storedBudget) setMonthlyBudgetState(Number(storedBudget));
+      }
 
       // Load expenses from Supabase
       const { data, error } = await supabase
@@ -111,8 +124,18 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const setMonthlyBudget = async (budget: number) => {
-    setMonthlyBudgetState(budget);
-    await AsyncStorage.setItem('@budget', budget.toString());
+    try {
+      setMonthlyBudgetState(budget);
+      await AsyncStorage.setItem('@budget', budget.toString());
+
+      const { error } = await supabase
+        .from('budgets')
+        .upsert({ id: 1, amount: budget });
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error saving budget to Supabase:', error);
+    }
   };
 
   return (
