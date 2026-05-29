@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, ScrollView } from 'react-native';
+import { useNetInfo } from '@react-native-community/netinfo';
 import { useExpenses } from '../../hooks/useExpenses';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function HistoryScreen() {
+  const netInfo = useNetInfo();
   const { expenses, deleteExpense } = useExpenses();
   const [filter, setFilter] = useState('All');
 
@@ -40,6 +42,10 @@ export default function HistoryScreen() {
     .reduce((sum, e) => sum + e.amount, 0);
 
   const handleDelete = (id: string) => {
+    if (netInfo.isConnected === false) {
+      Alert.alert('Offline', 'You cannot delete expenses while offline.');
+      return;
+    }
     Alert.alert('Delete Expense', 'Are you sure you want to delete this expense?', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Delete', style: 'destructive', onPress: () => deleteExpense(id) },
@@ -68,6 +74,11 @@ export default function HistoryScreen() {
               {item.description}
             </Text>
           ) : null}
+          {item.added_by && (
+            <Text style={styles.addedByText} numberOfLines={1}>
+              Added by: {item.added_by}
+            </Text>
+          )}
         </View>
         <View style={styles.amountContainer}>
           <Text style={styles.amountText}>₹{item.amount.toLocaleString('en-IN')}</Text>
@@ -275,6 +286,12 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#A3A3A3',
     marginTop: 2,
+  },
+  addedByText: {
+    fontSize: 10,
+    color: '#8B5CF6',
+    marginTop: 4,
+    fontStyle: 'italic',
   },
   deleteAction: {
     padding: 8,

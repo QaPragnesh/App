@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, StyleSheet, TouchableOpacity, Alert, ScrollView, KeyboardAvoidingView, Platform, Modal } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { useNetInfo } from '@react-native-community/netinfo';
 import { useExpenses } from '../../hooks/useExpenses';
 import { useRouter } from 'expo-router';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function AddExpenseScreen() {
+  const netInfo = useNetInfo();
   const [date, setDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
@@ -41,6 +43,11 @@ export default function AddExpenseScreen() {
   const remainingBudget = monthlyBudget > 0 ? monthlyBudget - currentMonthTotal : 0;
 
   const handleSave = async () => {
+    if (netInfo.isConnected === false) {
+      Alert.alert('Offline', 'You cannot add expenses while offline.');
+      return;
+    }
+
     if (!amount || isNaN(Number(amount))) {
       Alert.alert('Error', 'Please enter a valid amount');
       return;

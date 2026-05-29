@@ -1,10 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { useNetInfo } from '@react-native-community/netinfo';
 import { useExpenses } from '../../hooks/useExpenses';
+import { useWorkspace } from '../../context/WorkspaceContext';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function BudgetSetupScreen() {
+  const netInfo = useNetInfo();
+  const { workspace } = useWorkspace();
   const { monthlyBudget, setMonthlyBudget, expenses } = useExpenses();
   const [budgetInput, setBudgetInput] = useState(monthlyBudget.toString());
 
@@ -13,13 +17,24 @@ export default function BudgetSetupScreen() {
   }, [monthlyBudget]);
 
   const handleSaveBudget = async () => {
+    if (netInfo.isConnected === false) {
+      Alert.alert('Offline', 'You cannot update budget while offline.');
+      return;
+    }
     const amount = parseFloat(budgetInput);
     if (isNaN(amount) || amount <= 0) {
       Alert.alert('Invalid Input', 'Please enter a valid budget amount.');
       return;
     }
-    await setMonthlyBudget(amount);
-    Alert.alert('Success', 'Monthly budget limit updated!');
+    const result = await setMonthlyBudget(amount);
+    if (result.ok) {
+      Alert.alert('Success', 'Budget saved to Supabase for this workspace.');
+    } else {
+      Alert.alert(
+        'Could Not Save',
+        result.error ?? 'Run supabase/budgets_setup.sql in Supabase SQL Editor, then try again.'
+      );
+    }
   };
 
   const currentMonth = new Date().getMonth();
@@ -61,6 +76,14 @@ export default function BudgetSetupScreen() {
           keyboardShouldPersistTaps="handled"
         >
       <Text style={styles.headerTitle}>Budget Setup</Text>
+      {workspace?.name ? (
+        <View style={styles.workspaceBadge}>
+          <Ionicons name="business-outline" size={14} color="#10B981" />
+          <Text style={styles.workspaceBadgeText}>
+            {workspace.name} — budget for this workspace
+          </Text>
+        </View>
+      ) : null}
 
       {/* Modern Budget Limit Card */}
       <View style={styles.budgetCard}>
@@ -140,7 +163,25 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     color: '#FFFFFF',
-    marginBottom: 20,
+    marginBottom: 8,
+  },
+  workspaceBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#0D3326',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    marginBottom: 16,
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderColor: '#10B981',
+  },
+  workspaceBadgeText: {
+    fontSize: 12,
+    color: '#6EE7B7',
+    fontWeight: '600',
   },
   budgetCard: {
     backgroundColor: '#FFF0F0',

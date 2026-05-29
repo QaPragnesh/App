@@ -1,6 +1,7 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Dimensions, TouchableOpacity } from 'react-native';
 import { useExpenses } from '../../hooks/useExpenses';
+import { useWorkspace } from '../../context/WorkspaceContext';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -8,6 +9,7 @@ const screenWidth = Dimensions.get('window').width;
 
 export default function DashboardScreen() {
   const { expenses, monthlyBudget } = useExpenses();
+  const { workspace } = useWorkspace();
 
   // Current Month Data
   const currentMonth = new Date().getMonth();
@@ -76,7 +78,12 @@ export default function DashboardScreen() {
       
       {/* Overview Top Card */}
       <View style={styles.overviewHeaderCard}>
-        <Text style={styles.overviewText}>Overview</Text>
+        <View>
+          <Text style={styles.overviewText}>Overview</Text>
+          {workspace && (
+            <Text style={styles.workspaceText}>Workspace: {workspace.name}</Text>
+          )}
+        </View>
         {monthlyBudget > 0 && (
           <View style={styles.budgetPill}>
             <Text style={styles.budgetPillText}>{Math.round(budgetPercentage)}% of budget used</Text>
@@ -199,6 +206,11 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '500',
+  },
+  workspaceText: {
+    color: '#A3A3A3',
+    fontSize: 12,
+    marginTop: 2,
   },
   budgetPill: {
     backgroundColor: '#FFF3E0',
