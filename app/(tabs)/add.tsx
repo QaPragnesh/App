@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, Alert, ScrollView, KeyboardAvoidingView, Platform, Modal } from 'react-native';
+import { View, Text, TextInput, StyleSheet, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, Modal } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useNetInfo } from '@react-native-community/netinfo';
 import { useExpenses } from '../../hooks/useExpenses';
 import { useRouter } from 'expo-router';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useAlert } from '../../context/AlertContext';
 
 export default function AddExpenseScreen() {
   const netInfo = useNetInfo();
@@ -16,6 +17,7 @@ export default function AddExpenseScreen() {
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
   const { addExpense, monthlyBudget, expenses } = useExpenses();
+  const { showAlert, showConfirm } = useAlert();
   const router = useRouter();
 
   const categories = [
@@ -44,26 +46,24 @@ export default function AddExpenseScreen() {
 
   const handleSave = async () => {
     if (netInfo.isConnected === false) {
-      Alert.alert('Offline', 'You cannot add expenses while offline.');
+      showAlert('Offline', 'You cannot add expenses while offline.');
       return;
     }
 
     if (!amount || isNaN(Number(amount))) {
-      Alert.alert('Error', 'Please enter a valid amount');
+      showAlert('Error', 'Please enter a valid amount');
       return;
     }
     
     const expenseAmount = Number(amount);
     
     if (monthlyBudget > 0 && (currentMonthTotal + expenseAmount) > monthlyBudget) {
-      Alert.alert(
-        'Budget Warning',
-        `This expense exceeds your monthly budget. Do you want to proceed?`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Proceed', onPress: () => saveAndGoBack(expenseAmount) }
-        ]
-      );
+      showConfirm({
+        title: 'Budget Warning',
+        message: 'This expense exceeds your monthly budget. Do you want to proceed?',
+        confirmText: 'Proceed',
+        onConfirm: () => saveAndGoBack(expenseAmount)
+      });
     } else {
       saveAndGoBack(expenseAmount);
     }
@@ -78,7 +78,7 @@ export default function AddExpenseScreen() {
     });
     setAmount('');
     setDescription('');
-    Alert.alert('Success', 'Expense saved successfully!');
+    showAlert('Success', 'Expense saved successfully!');
   };
 
   const formatDate = (date: Date) => {
@@ -89,14 +89,14 @@ export default function AddExpenseScreen() {
   };
 
   return (
-    <KeyboardAvoidingView 
-      style={{ flex: 1 }} 
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
-    >
-      <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <KeyboardAvoidingView 
+        style={{ flex: 1 }} 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+      >
         <ScrollView 
-          style={styles.container} 
+          style={{ flex: 1 }}
           contentContainerStyle={[styles.content, { paddingBottom: 100 }]}
           keyboardShouldPersistTaps="handled"
         >
@@ -200,7 +200,7 @@ export default function AddExpenseScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
-    </SafeAreaView>
+      </KeyboardAvoidingView>
 
       {/* Funny Category Modal */}
       <Modal
@@ -244,8 +244,7 @@ export default function AddExpenseScreen() {
           </View>
         </View>
       </Modal>
-
-    </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 

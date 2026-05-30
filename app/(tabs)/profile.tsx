@@ -13,9 +13,12 @@ import {
   Platform,
 } from 'react-native';
 import { useWorkspace } from '../../context/WorkspaceContext';
+import { useExpenses } from '../../hooks/useExpenses';
+import { useAlert } from '../../context/AlertContext';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { PasswordInput } from '../../components/password-input';
 
 export default function ProfileScreen() {
@@ -26,10 +29,13 @@ export default function ProfileScreen() {
     members,
     addMember,
     updateDisplayName,
+    updatePassword,
     deleteMember,
+    deleteWorkspace,
     refreshMembers,
     leaveWorkspace,
   } = useWorkspace();
+  const { refreshExpenses } = useExpenses();
   const router = useRouter();
 
   useFocusEffect(
@@ -47,32 +53,51 @@ export default function ProfileScreen() {
   const [savingName, setSavingName] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
+  const [showResetPassword, setShowResetPassword] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [savingPassword, setSavingPassword] = useState(false);
+  const [deletingWorkspace, setDeletingWorkspace] = useState(false);
+
+  const { showAlert, showConfirm } = useAlert();
+
   useEffect(() => {
     setEditNameInput(displayName);
   }, [displayName]);
 
   const handleLogout = () => {
-    Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Logout',
-          style: 'destructive',
-          onPress: async () => {
-            await leaveWorkspace();
-            router.replace('/welcome');
-          },
-        },
-      ]
-    );
+    showConfirm({
+      title: 'Logout',
+      message: 'Are you sure you want to logout?',
+      confirmText: 'Logout',
+      onConfirm: async () => {
+        await leaveWorkspace();
+        router.replace('/welcome');
+      }
+    });
+  };
+
+  const handleDeleteWorkspace = () => {
+    showConfirm({
+      title: 'Delete Workspace',
+      message: 'Are you absolutely sure? This will permanently delete the workspace, all members, budgets, and expenses. This action cannot be undone.',
+      confirmText: 'Delete',
+      onConfirm: async () => {
+        setDeletingWorkspace(true);
+        const result = await deleteWorkspace();
+        setDeletingWorkspace(false);
+        if (result.ok) {
+          router.replace('/welcome');
+        } else {
+          showAlert('Error', result.error ?? 'Could not delete workspace.');
+        }
+      }
+    });
   };
 
   const handleSaveName = async () => {
     const name = editNameInput.trim();
     if (!name) {
-      Alert.alert('Invalid Name', 'Please enter your name.');
+      showAlert('Invalid Name', 'Please enter your name.');
       return;
     }
     if (name === displayName) {
@@ -83,31 +108,48 @@ export default function ProfileScreen() {
     const result = await updateDisplayName(name);
     setSavingName(false);
     if (result.ok) {
+      await refreshExpenses();
       setShowEditName(false);
-      Alert.alert('Updated', 'Your name has been saved.');
+      showAlert('Updated', 'Your name has been saved.');
     } else {
-      Alert.alert('Could Not Update', result.error ?? 'Please try again.');
+      showAlert('Could Not Update', result.error ?? 'Please try again.');
+    }
+  };
+
+  const handleSavePassword = async () => {
+    const pass = newPassword.trim();
+    if (!pass) {
+      showAlert('Invalid Password', 'Please enter a new password.');
+      return;
+    }
+    setSavingPassword(true);
+    const result = await updatePassword(pass);
+    setSavingPassword(false);
+    if (result.ok) {
+      setShowResetPassword(false);
+      setNewPassword('');
+      showAlert('Updated', 'Your password has been changed.');
+    } else {
+      showAlert('Error', result.error ?? 'Please try again.');
     }
   };
 
   const handleDeleteMember = (memberId: string, name: string) => {
-    Alert.alert('Remove Member', `Remove ${name} from this workspace?`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Remove',
-        style: 'destructive',
-        onPress: async () => {
-          setDeletingId(memberId);
-          const result = await deleteMember(memberId);
-          setDeletingId(null);
-          if (result.ok) {
-            Alert.alert('Removed', `${name} has been removed.`);
-          } else {
-            Alert.alert('Error', result.error ?? 'Could not remove member.');
-          }
-        },
-      },
-    ]);
+    showConfirm({
+      title: 'Remove Member',
+      message: `Are you sure you want to remove ${name} from this workspace?`,
+      confirmText: 'Remove',
+      onConfirm: async () => {
+        setDeletingId(memberId);
+        const result = await deleteMember(memberId);
+        setDeletingId(null);
+        if (result.ok) {
+          showAlert('Removed', `${name} has been removed.`);
+        } else {
+          showAlert('Error', result.error ?? 'Could not remove member.');
+        }
+      }
+    });
   };
 
   const handleAddMember = async () => {
@@ -115,7 +157,7 @@ export default function ProfileScreen() {
     const pass = memberPassword.trim();
 
     if (!name || !pass) {
-      Alert.alert('Missing Fields', 'Enter member name and password.');
+      showAlert('Missing Fields', 'Enter member name and password.');
       return;
     }
 
@@ -127,12 +169,12 @@ export default function ProfileScreen() {
       setMemberName('');
       setMemberPassword('');
       setShowAddMember(false);
-      Alert.alert(
+      showAlert(
         'Member Added',
-        `${name} can login with workspace name ${workspace?.name}, their name, and password.`
+        `${name} joined the workspace!`
       );
     } else {
-      Alert.alert('Could Not Add Member', result.error ?? 'Please try again.');
+      showAlert('Could Not Add Member', result.error ?? 'Please try again.');
     }
   };
 
@@ -140,7 +182,10 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <View style={styles.screenHeader}>
+        <Text style={styles.screenTitle}>Profile</Text>
+      </View>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
 
         {/* Profile Header */}
         <View style={styles.headerCard}>
@@ -149,86 +194,50 @@ export default function ProfileScreen() {
               {displayName ? displayName.charAt(0).toUpperCase() : '?'}
             </Text>
           </View>
-          <Text style={styles.nameText}>{displayName}</Text>
-
-          <TouchableOpacity
-            style={styles.editNameBtn}
-            onPress={() => {
-              setEditNameInput(displayName);
-              setShowEditName(true);
-            }}
-          >
-            <Ionicons name="pencil" size={16} color="#10B981" />
-            <Text style={styles.editNameBtnText}>Edit name</Text>
-          </TouchableOpacity>
-
-          <View style={[styles.badge, isOwner ? styles.ownerBadge : styles.memberBadge]}>
-            <Ionicons
-              name={isOwner ? 'star' : 'person'}
-              size={12}
-              color={isOwner ? '#F59E0B' : '#3B82F6'}
-            />
-            <Text style={[styles.badgeText, { color: isOwner ? '#F59E0B' : '#3B82F6' }]}>
-              {isOwner ? 'Owner' : 'Member'}
-            </Text>
-          </View>
-        </View>
-
-        {/* Workspace Info Card */}
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Workspace Details</Text>
-
-          <View style={styles.infoRow}>
-            <View style={[styles.infoIconBg, { backgroundColor: '#1A2E24' }]}>
-              <MaterialIcons name="workspaces" size={20} color="#10B981" />
-            </View>
-            <View style={styles.infoTextContainer}>
-              <Text style={styles.infoLabel}>Workspace Name</Text>
-              <Text style={styles.infoValue}>{workspaceLabel}</Text>
-            </View>
+          <View style={styles.nameRow}>
+            <Text style={styles.nameText}>{displayName}</Text>
+            <TouchableOpacity onPress={() => { setEditNameInput(displayName); setShowEditName(true); }}>
+              <Ionicons name="create-outline" size={22} color="#34D399" />
+            </TouchableOpacity>
           </View>
 
-          <View style={styles.infoRow}>
-            <View style={[styles.infoIconBg, { backgroundColor: '#1F1A2E' }]}>
-              <Ionicons name="shield-checkmark" size={20} color="#8B5CF6" />
-            </View>
-            <View style={styles.infoTextContainer}>
-              <Text style={styles.infoLabel}>Your Role</Text>
-              <Text style={[styles.infoValue, { color: isOwner ? '#F59E0B' : '#3B82F6' }]}>
-                {isOwner ? '👑 Owner' : '👤 Member'}
+          <View style={styles.workspaceSimpleInfo}>
+            <Text style={styles.workspaceSimpleText}>Workspace: <Text style={{color: '#F8FAFC'}}>{workspaceLabel}</Text></Text>
+            <View style={[styles.badge, isOwner ? styles.ownerBadge : styles.memberBadge]}>
+              <Ionicons
+                name={isOwner ? 'star' : 'person'}
+                size={12}
+                color={isOwner ? '#F59E0B' : '#3B82F6'}
+              />
+              <Text style={[styles.badgeText, { color: isOwner ? '#F59E0B' : '#3B82F6' }]}>
+                {isOwner ? 'Owner' : 'Member'}
               </Text>
             </View>
           </View>
+
+          <TouchableOpacity style={styles.resetPasswordBtn} onPress={() => setShowResetPassword(true)}>
+            <Ionicons name="key-outline" size={16} color="#A78BFA" />
+            <Text style={styles.resetPasswordText}>Change Password</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Owner: Add Member */}
         {isOwner && (
           <>
-            <TouchableOpacity
-              style={styles.addMemberCard}
-              onPress={() => setShowAddMember(true)}
-              activeOpacity={0.85}
-            >
-              <View style={styles.addMemberIconWrap}>
-                <Ionicons name="person-add" size={26} color="#FFFFFF" />
-              </View>
-              <View style={styles.addMemberTextWrap}>
-                <Text style={styles.addMemberTitle}>Add Member</Text>
-                <Text style={styles.addMemberSubtitle}>
-                  Share workspace name + member login details
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={22} color="#6EE7B7" />
-            </TouchableOpacity>
-
             <View style={styles.card}>
-              <Text style={styles.sectionTitle}>
-                Team Members {members.length > 0 ? `(${members.length})` : ''}
-              </Text>
+              <View style={styles.teamHeaderRow}>
+                <Text style={styles.sectionTitle}>
+                  Team Members {members.length > 0 ? `(${members.length})` : ''}
+                </Text>
+                <TouchableOpacity onPress={() => setShowAddMember(true)} style={styles.addMemberSmallBtn}>
+                  <Ionicons name="person-add" size={14} color="#10B981" />
+                  <Text style={styles.addMemberSmallBtnText}>Add</Text>
+                </TouchableOpacity>
+              </View>
 
               {members.length === 0 ? (
                 <Text style={styles.emptyMembers}>
-                  No members yet. Tap Add Member above to let others join your workspace.
+                  No members yet. Tap Add above to let others join your workspace.
                 </Text>
               ) : (
                 members.map((m) => (
@@ -266,9 +275,27 @@ export default function ProfileScreen() {
 
         {/* Logout Button */}
         <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
-          <Ionicons name="log-out-outline" size={20} color="#EF4444" />
+          <Ionicons name="log-out-outline" size={20} color="#FECACA" />
           <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
+
+        {/* Delete Workspace Button */}
+        {isOwner && (
+          <TouchableOpacity 
+            style={styles.deleteWorkspaceBtn} 
+            onPress={handleDeleteWorkspace}
+            disabled={deletingWorkspace}
+          >
+            {deletingWorkspace ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <>
+                <Ionicons name="trash-outline" size={20} color="#FFFFFF" />
+                <Text style={styles.deleteWorkspaceBtnText}>Delete Workspace</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        )}
 
       </ScrollView>
 
@@ -367,6 +394,49 @@ export default function ProfileScreen() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* Change Password Modal */}
+      <Modal visible={showResetPassword} animationType="slide" transparent>
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Change Password</Text>
+              <TouchableOpacity onPress={() => setShowResetPassword(false)}>
+                <Ionicons name="close" size={24} color="#9CA3AF" />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.modalSubtitle}>
+              Update the password used to log into this workspace account.
+            </Text>
+
+            <Text style={styles.inputLabel}>NEW PASSWORD</Text>
+            <PasswordInput
+              containerStyle={styles.modalPasswordWrap}
+              inputStyle={styles.modalPasswordInput}
+              placeholder="Enter new password"
+              placeholderTextColor="#555"
+              value={newPassword}
+              onChangeText={setNewPassword}
+            />
+
+            <TouchableOpacity
+              style={[styles.modalSubmitBtn, savingPassword && styles.btnDisabled]}
+              onPress={handleSavePassword}
+              disabled={savingPassword}
+            >
+              {savingPassword ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <Text style={styles.modalSubmitText}>Save Password</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -374,213 +444,295 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#121212',
+    backgroundColor: '#0F172A', // Deeper, modern dark blue/slate background
+  },
+  screenHeader: {
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    paddingBottom: 8,
+  },
+  screenTitle: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#F8FAFC',
+    letterSpacing: -0.5,
   },
   content: {
     padding: 16,
     paddingBottom: 100,
   },
   headerCard: {
-    backgroundColor: '#1E1E1E',
-    borderRadius: 24,
+    backgroundColor: '#1E293B', // Rich slate card
+    borderRadius: 28,
     padding: 32,
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 20,
     borderWidth: 1,
-    borderColor: '#2A2A2A',
+    borderColor: '#334155',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
   },
   avatarContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#262626',
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    backgroundColor: '#0F172A',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 16,
     borderWidth: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 4,
   },
   avatarText: {
-    fontSize: 34,
+    fontSize: 36,
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: '#F8FAFC',
+  },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 10,
   },
   nameText: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    marginBottom: 8,
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#F8FAFC',
+    letterSpacing: -0.3,
   },
-  editNameBtn: {
+  workspaceSimpleInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  workspaceSimpleText: {
+    fontSize: 14,
+    color: '#94A3B8',
+    fontWeight: '600',
+  },
+  resetPasswordBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: '#0D3326',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 24,
+    backgroundColor: 'rgba(139, 92, 246, 0.1)',
     borderWidth: 1,
-    borderColor: '#10B981',
-    marginBottom: 12,
+    borderColor: 'rgba(139, 92, 246, 0.3)',
+    marginTop: 16,
   },
-  editNameBtnText: {
-    color: '#6EE7B7',
-    fontSize: 13,
+  resetPasswordText: {
+    color: '#A78BFA',
+    fontSize: 14,
     fontWeight: '600',
   },
   badge: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 20,
-    gap: 5,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 24,
+    gap: 6,
   },
   ownerBadge: {
-    backgroundColor: '#2A1F00',
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
     borderWidth: 1,
-    borderColor: '#F59E0B',
+    borderColor: 'rgba(245, 158, 11, 0.4)',
   },
   memberBadge: {
-    backgroundColor: '#0D1B2E',
+    backgroundColor: 'rgba(59, 130, 246, 0.15)',
     borderWidth: 1,
-    borderColor: '#3B82F6',
+    borderColor: 'rgba(59, 130, 246, 0.4)',
   },
   badgeText: {
     fontSize: 13,
-    fontWeight: 'bold',
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
   card: {
-    backgroundColor: '#1E1E1E',
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 16,
+    backgroundColor: '#1E293B',
+    borderRadius: 24,
+    padding: 24,
+    marginBottom: 20,
     borderWidth: 1,
-    borderColor: '#2A2A2A',
+    borderColor: '#334155',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 5,
   },
   sectionTitle: {
-    fontSize: 15,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    marginBottom: 12,
+    fontSize: 17,
+    fontWeight: '800',
+    color: '#F8FAFC',
+    letterSpacing: -0.2,
+  },
+  teamHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  addMemberSmallBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.3)',
+  },
+  addMemberSmallBtnText: {
+    color: '#34D399',
+    fontSize: 13,
+    fontWeight: '700',
   },
   infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#141414',
-    padding: 14,
-    borderRadius: 14,
-    marginBottom: 10,
-    marginTop: 10,
+    backgroundColor: '#0F172A',
+    padding: 16,
+    borderRadius: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#1E293B',
   },
   infoIconBg: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 14,
+    marginRight: 16,
   },
   infoTextContainer: {
     flex: 1,
   },
   infoLabel: {
-    fontSize: 11,
-    color: '#6B7280',
-    marginBottom: 2,
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#94A3B8',
+    marginBottom: 4,
+    letterSpacing: 0.5,
   },
   infoValue: {
-    fontSize: 15,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#F8FAFC',
   },
   addMemberCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0D3326',
-    borderRadius: 20,
-    padding: 18,
-    marginBottom: 16,
+    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    borderRadius: 24,
+    padding: 20,
+    marginBottom: 20,
     borderWidth: 1,
-    borderColor: '#10B981',
-    gap: 14,
+    borderColor: 'rgba(16, 185, 129, 0.3)',
+    gap: 16,
   },
   addMemberIconWrap: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     backgroundColor: '#10B981',
     justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: '#10B981',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 6,
   },
   addMemberTextWrap: {
     flex: 1,
   },
   addMemberTitle: {
-    fontSize: 17,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    marginBottom: 2,
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#10B981',
+    marginBottom: 4,
   },
   addMemberSubtitle: {
-    fontSize: 12,
-    color: '#6EE7B7',
+    fontSize: 13,
+    color: '#A7F3D0',
+    lineHeight: 18,
   },
   emptyMembers: {
-    fontSize: 13,
-    color: '#6B7280',
-    lineHeight: 20,
+    fontSize: 14,
+    color: '#94A3B8',
+    lineHeight: 22,
+    fontStyle: 'italic',
   },
   memberRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#141414',
-    padding: 12,
-    borderRadius: 12,
-    marginBottom: 8,
-    gap: 12,
+    backgroundColor: '#0F172A',
+    padding: 14,
+    borderRadius: 16,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#1E293B',
+    gap: 14,
   },
   memberAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#1A2E4A',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#1E293B',
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#3B82F6',
   },
   memberAvatarText: {
-    color: '#3B82F6',
-    fontWeight: 'bold',
-    fontSize: 16,
+    color: '#60A5FA',
+    fontWeight: '800',
+    fontSize: 18,
   },
   memberName: {
     flex: 1,
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '600',
+    color: '#F8FAFC',
+    fontSize: 16,
+    fontWeight: '700',
   },
   deleteMemberBtn: {
     padding: 8,
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    borderRadius: 12,
   },
   tipCardInline: {
     flexDirection: 'row',
-    backgroundColor: '#1F1700',
-    borderRadius: 12,
-    padding: 12,
-    marginTop: 8,
+    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+    borderRadius: 16,
+    padding: 16,
+    marginTop: 12,
     borderWidth: 1,
-    borderColor: '#3D2E00',
-    gap: 8,
+    borderColor: 'rgba(245, 158, 11, 0.2)',
+    gap: 12,
     alignItems: 'flex-start',
   },
   tipTextInline: {
     flex: 1,
-    fontSize: 12,
-    color: '#D97706',
-    lineHeight: 18,
+    fontSize: 13,
+    color: '#FCD34D',
+    lineHeight: 20,
+    fontWeight: '500',
   },
   logoutBtn: {
     flexDirection: 'row',
-    backgroundColor: '#1A0A0A',
+    backgroundColor: '#4A1515',
     borderRadius: 16,
     paddingVertical: 16,
     justifyContent: 'center',
@@ -590,82 +742,139 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   logoutText: {
-    color: '#EF4444',
+    color: '#FECACA',
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '700',
+  },
+  deleteWorkspaceBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    marginTop: 16,
+    gap: 8,
+    backgroundColor: '#EF4444',
+    borderRadius: 16,
+    shadowColor: '#EF4444',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  deleteWorkspaceBtnText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '800',
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.7)',
+    backgroundColor: 'rgba(15, 23, 42, 0.85)',
     justifyContent: 'flex-end',
   },
   modalCard: {
-    backgroundColor: '#1E1E1E',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 24,
+    backgroundColor: '#1E293B',
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    padding: 28,
     paddingBottom: 40,
     borderWidth: 1,
-    borderColor: '#2A2A2A',
+    borderBottomWidth: 0,
+    borderColor: '#334155',
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 12,
   },
   modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#F8FAFC',
+    letterSpacing: -0.3,
   },
   modalSubtitle: {
-    fontSize: 13,
-    color: '#9CA3AF',
-    lineHeight: 20,
-    marginBottom: 20,
+    fontSize: 14,
+    color: '#94A3B8',
+    lineHeight: 22,
+    marginBottom: 24,
   },
   modalHighlight: {
-    color: '#10B981',
-    fontWeight: 'bold',
+    color: '#34D399',
+    fontWeight: '800',
   },
   inputLabel: {
-    fontSize: 11,
-    fontWeight: 'bold',
-    color: '#6B7280',
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#94A3B8',
     letterSpacing: 1,
-    marginBottom: 6,
+    marginBottom: 8,
   },
   modalInput: {
-    backgroundColor: '#141414',
+    backgroundColor: '#0F172A',
     borderWidth: 1,
-    borderColor: '#2D2D2D',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    color: '#FFFFFF',
-    fontSize: 15,
-    marginBottom: 16,
+    borderColor: '#334155',
+    borderRadius: 16,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
+    color: '#F8FAFC',
+    fontSize: 16,
+    marginBottom: 20,
   },
   modalPasswordWrap: {
-    marginBottom: 16,
+    marginBottom: 20,
   },
   modalPasswordInput: {
     backgroundColor: 'transparent',
   },
   modalSubmitBtn: {
     backgroundColor: '#10B981',
-    borderRadius: 14,
-    paddingVertical: 16,
+    borderRadius: 16,
+    paddingVertical: 18,
     alignItems: 'center',
-    marginTop: 4,
+    marginTop: 8,
+    shadowColor: '#10B981',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
   modalSubmitText: {
     color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: 17,
+    fontWeight: '800',
+    letterSpacing: 0.5,
   },
   btnDisabled: {
     opacity: 0.6,
+  },
+  settingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#334155',
+  },
+  settingRowNoBorder: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 16,
+  },
+  settingTextContainer: {
+    flex: 1,
+    paddingRight: 16,
+  },
+  settingTitle: {
+    fontSize: 16,
+    color: '#F8FAFC',
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  settingSubtext: {
+    fontSize: 13,
+    color: '#94A3B8',
+    lineHeight: 18,
   },
 });

@@ -1,21 +1,23 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  KeyboardAvoidingView, Platform, Alert, ScrollView,
+  KeyboardAvoidingView, Platform, Alert, ScrollView, Image
 } from 'react-native';
 import { useWorkspace, normalizeWorkspaceName } from '../context/WorkspaceContext';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { PasswordInput } from '../components/password-input';
+import { useAlert } from '../context/AlertContext';
 
 type Mode = 'create' | 'login';
 
 export default function WelcomeScreen() {
   const { createWorkspace, loginWorkspace } = useWorkspace();
+  const { showAlert } = useAlert();
   const router = useRouter();
 
-  const [mode, setMode] = useState<Mode>('create');
+  const [mode, setMode] = useState<Mode>('login');
   const [workspaceName, setWorkspaceName] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
@@ -32,17 +34,19 @@ export default function WelcomeScreen() {
     const pass = password.trim();
     const dName = displayName.trim();
 
-    if (!wsName || !pass || !dName) {
-      Alert.alert('Missing Fields', 'Workspace name, your name, and password are required.');
+    if (!workspaceName.trim() || !displayName.trim() || !password.trim()) {
+      showAlert('Missing Fields', 'Workspace name, your name, and password are required.');
       return;
     }
+
     setLoading(true);
-    const result = await createWorkspace(wsName, pass, dName);
+    const result = await createWorkspace(workspaceName, password, displayName);
     setLoading(false);
+
     if (result.ok) {
       router.replace('/(tabs)');
     } else {
-      Alert.alert('Error', result.error ?? 'Could not create workspace.');
+      showAlert('Error', result.error ?? 'Could not create workspace.');
     }
   };
 
@@ -51,17 +55,19 @@ export default function WelcomeScreen() {
     const pass = password.trim();
     const dName = displayName.trim();
 
-    if (!wsName || !pass || !dName) {
-      Alert.alert('Missing Fields', 'Workspace name, your name, and password are required.');
+    if (!workspaceName.trim() || !displayName.trim() || !password.trim()) {
+      showAlert('Missing Fields', 'Workspace name, your name, and password are required.');
       return;
     }
+
     setLoading(true);
-    const result = await loginWorkspace(wsName, pass, dName);
+    const result = await loginWorkspace(workspaceName, password, displayName);
     setLoading(false);
+
     if (result.ok) {
       router.replace('/(tabs)');
     } else {
-      Alert.alert('Login Failed', result.error ?? 'Please check your details and try again.');
+      showAlert('Login Failed', result.error ?? 'Please check your details and try again.');
     }
   };
 
@@ -75,7 +81,11 @@ export default function WelcomeScreen() {
 
           <View style={styles.header}>
             <View style={styles.logoCircle}>
-              <Ionicons name="wallet" size={40} color="#FFFFFF" />
+              <Image 
+                source={require('../assets/images/android-icon-foreground-new.png')} 
+                style={{ width: 80, height: 80 }} 
+                resizeMode="contain"
+              />
             </View>
             <Text style={styles.title}>Expense Tracker</Text>
             <Text style={styles.subtitle}>Manage finances together</Text>
@@ -94,7 +104,7 @@ export default function WelcomeScreen() {
               <Text style={styles.label}>YOUR NAME</Text>
               <TextInput
                 style={styles.input}
-                placeholder="e.g. Pragnesh"
+                placeholder="Your Name"
                 placeholderTextColor="#555"
                 value={displayName}
                 onChangeText={setDisplayName}
@@ -103,7 +113,7 @@ export default function WelcomeScreen() {
               <Text style={styles.label}>WORKSPACE NAME *</Text>
               <TextInput
                 style={styles.input}
-                placeholder="e.g. FAMILY"
+                placeholder="Workspace Name *"
                 placeholderTextColor="#555"
                 autoCapitalize="characters"
                 value={workspaceName}
@@ -112,7 +122,7 @@ export default function WelcomeScreen() {
 
               <Text style={styles.label}>PASSWORD</Text>
               <PasswordInput
-                placeholder="Set your password"
+                placeholder="Password"
                 placeholderTextColor="#555"
                 value={password}
                 onChangeText={setPassword}
@@ -150,7 +160,7 @@ export default function WelcomeScreen() {
               <Text style={styles.label}>WORKSPACE NAME *</Text>
               <TextInput
                 style={styles.input}
-                placeholder="e.g. FAMILY"
+                placeholder="Workspace Name *"
                 placeholderTextColor="#555"
                 autoCapitalize="characters"
                 value={workspaceName}
@@ -160,7 +170,7 @@ export default function WelcomeScreen() {
               <Text style={styles.label}>YOUR NAME</Text>
               <TextInput
                 style={styles.input}
-                placeholder="e.g. Rahul"
+                placeholder="Your Name"
                 placeholderTextColor="#555"
                 value={displayName}
                 onChangeText={setDisplayName}
@@ -168,7 +178,7 @@ export default function WelcomeScreen() {
 
               <Text style={styles.label}>PASSWORD</Text>
               <PasswordInput
-                placeholder="Your password"
+                placeholder="Password"
                 placeholderTextColor="#555"
                 value={password}
                 onChangeText={setPassword}
@@ -218,10 +228,11 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#10B981',
+    backgroundColor: '#E6F4FE',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
+    overflow: 'hidden',
   },
   title: {
     fontSize: 26,

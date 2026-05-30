@@ -1,7 +1,8 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Dimensions, TouchableOpacity } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, Dimensions, TouchableOpacity, Modal } from 'react-native';
 import { useExpenses } from '../../hooks/useExpenses';
 import { useWorkspace } from '../../context/WorkspaceContext';
+import { useAlert } from '../../context/AlertContext';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -10,6 +11,9 @@ const screenWidth = Dimensions.get('window').width;
 export default function DashboardScreen() {
   const { expenses, monthlyBudget } = useExpenses();
   const { workspace } = useWorkspace();
+  const { showAlert } = useAlert();
+
+  const [selectedMonth, setSelectedMonth] = useState<{label: string, monthIndex: number, year: number} | null>(null);
 
   // Current Month Data
   const currentMonth = new Date().getMonth();
@@ -63,11 +67,24 @@ export default function DashboardScreen() {
     return {
       label: monthNames[m],
       total,
-      isCurrent: i === 5
+      isCurrent: i === 5,
+      monthIndex: m,
+      year: y
     };
   });
-  const activeMonthlyTotals = monthlyTotals.filter(m => m.total > 0);
+  const activeMonthlyTotals = monthlyTotals.filter(m => m.total > 0).reverse();
   const maxMonthlyAmount = Math.max(...activeMonthlyTotals.map(m => m.total), 1);
+
+  // Member-wise Summary (Current Month)
+  const memberTotals: Record<string, number> = {};
+  currentMonthExpenses.forEach(e => {
+    const name = e.added_by || 'Unknown';
+    memberTotals[name] = (memberTotals[name] || 0) + e.amount;
+  });
+  const memberEntries = Object.keys(memberTotals)
+    .map(name => ({ name, amt: memberTotals[name] }))
+    .sort((a, b) => b.amt - a.amt);
+  const maxMemberAmount = memberEntries.length > 0 ? memberEntries[0].amt : 1;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -150,7 +167,12 @@ export default function DashboardScreen() {
       {/* Month-wise Summary */}
       {activeMonthlyTotals.length > 0 && (
         <>
-          <Text style={styles.sectionTitle}>Month-wise summary</Text>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={[styles.sectionTitle, { marginBottom: 0 }]}>Month-wise summary</Text>
+            <TouchableOpacity onPress={() => showAlert('Month-wise Summary', 'Tap on any month to view a detailed breakdown of your expenses by category for that specific month.')}>
+              <Ionicons name="information-circle-outline" size={20} color="#A3A3A3" />
+            </TouchableOpacity>
+          </View>
           <View style={styles.breakdownCard}>
             {activeMonthlyTotals.map((item, idx) => {
               const isOverBudget = monthlyBudget > 0 && item.total > monthlyBudget;
@@ -158,8 +180,22 @@ export default function DashboardScreen() {
               const pct = Math.max((item.total / maxMonthlyAmount) * 100, 0);
               
               return (
-                <View key={idx} style={[styles.categoryRow, idx === activeMonthlyTotals.length - 1 ? {marginBottom: 0} : {}]}>
-                  <Text style={styles.monthName}>{item.label}</Text>
+                <TouchableOpacity 
+                  key={idx} 
+                  style={[
+                    styles.categoryRow, 
+                    {
+                      backgroundColor: '#1E1E1E',
+                      padding: 12,
+                      borderRadius: 12,
+                      marginBottom: idx === activeMonthlyTotals.length - 1 ? 0 : 12,
+                      borderWidth: 1,
+                      borderColor: '#333333'
+                    }
+                  ]}
+                  onPress={() => setSelectedMonth({label: item.label, monthIndex: item.monthIndex, year: item.year})}
+                >
+                  <Text style={[styles.monthName, { color: '#E5E5E5', fontWeight: '600' }]}>{item.label}</Text>
                   <View style={styles.categoryBarContainer}>
                     <View style={[styles.categoryBar, { width: `${pct}%`, backgroundColor: barColor }]} />
                   </View>
@@ -170,7 +206,41 @@ export default function DashboardScreen() {
                     {isOverBudget && (
                       <Ionicons name="warning-outline" size={14} color="#EF4444" style={{marginLeft: 4}} />
                     )}
+                    <View style={{ backgroundColor: '#262626', borderRadius: 12, padding: 4, marginLeft: 8 }}>
+                      <Ionicons name="chevron-forward" size={14} color="#A3A3A3" />
+                    </View>
                   </View>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </>
+      )}
+
+      {/* Member Spend Summary */}
+      {memberEntries.length > 0 && (
+        <>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={[styles.sectionTitle, { marginBottom: 0 }]}>Team spend summary</Text>
+            <TouchableOpacity onPress={() => showAlert('Team Spend', 'This shows how much each team member spent this current month.')}>
+              <Ionicons name="information-circle-outline" size={20} color="#A3A3A3" />
+            </TouchableOpacity>
+          </View>
+          <View style={styles.breakdownCard}>
+            {memberEntries.map((member, idx) => {
+              const pct = Math.max((member.amt / maxMemberAmount) * 100, 0);
+              return (
+                <View key={member.name} style={[styles.categoryRow, idx === memberEntries.length - 1 ? { marginBottom: 0 } : {}]}>
+                  <View style={styles.categoryNameContainer}>
+                    <View style={[styles.dot, { backgroundColor: '#3B82F6' }]} />
+                    <Text style={styles.categoryName} numberOfLines={1}>
+                      {member.name}
+                    </Text>
+                  </View>
+                  <View style={styles.categoryBarContainer}>
+                    <View style={[styles.categoryBar, { width: `${pct}%`, backgroundColor: '#3B82F6' }]} />
+                  </View>
+                  <Text style={styles.categoryAmount}>₹{member.amt.toLocaleString('en-IN')}</Text>
                 </View>
               );
             })}
@@ -179,6 +249,101 @@ export default function DashboardScreen() {
       )}
 
     </ScrollView>
+
+      {/* Month Category Breakdown Modal */}
+      <Modal visible={!!selectedMonth} animationType="slide" transparent>
+        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setSelectedMonth(null)}>
+          <View style={styles.modalCard} onStartShouldSetResponder={() => true}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>{selectedMonth?.label} {selectedMonth?.year} Breakdown</Text>
+              <TouchableOpacity onPress={() => setSelectedMonth(null)}>
+                <Ionicons name="close" size={24} color="#9CA3AF" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={{ maxHeight: 400 }} showsVerticalScrollIndicator={false}>
+              {(() => {
+                if (!selectedMonth) return null;
+                
+                // Calculate category totals for the selected month
+                const monthExpenses = expenses.filter(e => {
+                  const ed = new Date(e.date);
+                  return ed.getMonth() === selectedMonth.monthIndex && ed.getFullYear() === selectedMonth.year;
+                });
+                
+                const monthCatTotals: Record<string, number> = {};
+                monthExpenses.forEach(e => {
+                  monthCatTotals[e.category] = (monthCatTotals[e.category] || 0) + e.amount;
+                });
+                
+                const maxMonthCatAmount = Math.max(...Object.values(monthCatTotals), 1);
+                
+                const entries = categoriesOrdered.map(cat => ({cat, amt: monthCatTotals[cat] || 0})).filter(e => e.amt > 0);
+                
+                // Calculate member totals for the selected month
+                const monthMemberTotals: Record<string, number> = {};
+                monthExpenses.forEach(e => {
+                  const name = e.added_by || 'Unknown';
+                  monthMemberTotals[name] = (monthMemberTotals[name] || 0) + e.amount;
+                });
+                const memberEntries = Object.keys(monthMemberTotals).map(name => ({name, amt: monthMemberTotals[name]})).sort((a,b) => b.amt - a.amt);
+                const maxMonthMemberAmount = memberEntries.length > 0 ? memberEntries[0].amt : 1;
+                
+                if (entries.length === 0) {
+                  return <Text style={{ color: '#9CA3AF', textAlign: 'center', marginTop: 20 }}>No expenses recorded for this month.</Text>;
+                }
+
+                return (
+                  <View>
+                    <Text style={[styles.sectionTitle, { fontSize: 14, color: '#9CA3AF', marginTop: 8 }]}>Category Breakdown</Text>
+                    {entries.map((entry, index) => {
+                      const { cat, amt } = entry;
+                      const pct = Math.max((amt / maxMonthCatAmount) * 100, 0);
+                      return (
+                        <View key={cat} style={[styles.categoryRow, index === entries.length - 1 ? { marginBottom: 0 } : { marginBottom: 16 }]}>
+                          <View style={styles.categoryNameContainer}>
+                            <View style={[styles.dot, { backgroundColor: categoryColors[cat] }]} />
+                            <Text style={styles.categoryName} numberOfLines={1}>
+                              {cat === 'Sakbhaji and fruits' ? 'Sabkbhaji & fruits' : cat === 'Petrol and diesel' ? 'Petrol & diesel' : cat}
+                            </Text>
+                          </View>
+                          <View style={styles.categoryBarContainer}>
+                            <View style={[styles.categoryBar, { width: `${pct}%`, backgroundColor: categoryColors[cat] }]} />
+                          </View>
+                          <Text style={styles.categoryAmount}>₹{amt.toLocaleString('en-IN')}</Text>
+                        </View>
+                      );
+                    })}
+
+                    {memberEntries.length > 0 && (
+                      <>
+                        <Text style={[styles.sectionTitle, { fontSize: 14, color: '#9CA3AF', marginTop: 24 }]}>Team Spend</Text>
+                        {memberEntries.map((member, idx) => {
+                          const pct = Math.max((member.amt / maxMonthMemberAmount) * 100, 0);
+                          return (
+                            <View key={member.name} style={[styles.categoryRow, idx === memberEntries.length - 1 ? { marginBottom: 0 } : { marginBottom: 16 }]}>
+                              <View style={styles.categoryNameContainer}>
+                                <View style={[styles.dot, { backgroundColor: '#3B82F6' }]} />
+                                <Text style={styles.categoryName} numberOfLines={1}>
+                                  {member.name}
+                                </Text>
+                              </View>
+                              <View style={styles.categoryBarContainer}>
+                                <View style={[styles.categoryBar, { width: `${pct}%`, backgroundColor: '#3B82F6' }]} />
+                              </View>
+                              <Text style={styles.categoryAmount}>₹{member.amt.toLocaleString('en-IN')}</Text>
+                            </View>
+                          );
+                        })}
+                      </>
+                    )}
+                  </View>
+                );
+              })()}
+            </ScrollView>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
     </SafeAreaView>
   );
 }
@@ -297,6 +462,13 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     marginLeft: 4,
   },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+    paddingRight: 8,
+  },
   breakdownCard: {
     backgroundColor: '#262626',
     borderWidth: 1,
@@ -352,7 +524,32 @@ const styles = StyleSheet.create({
   monthAmountContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    width: 75,
+    width: 95,
     justifyContent: 'flex-end',
-  }
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'flex-end',
+  },
+  modalCard: {
+    backgroundColor: '#1E1E1E',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    paddingBottom: 40,
+    borderWidth: 1,
+    borderColor: '#2A2A2A',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
 });

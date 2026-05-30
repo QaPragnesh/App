@@ -3,12 +3,14 @@ import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Alert,
 import { useNetInfo } from '@react-native-community/netinfo';
 import { useExpenses } from '../../hooks/useExpenses';
 import { useWorkspace } from '../../context/WorkspaceContext';
+import { useAlert } from '../../context/AlertContext';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function BudgetSetupScreen() {
   const netInfo = useNetInfo();
   const { workspace } = useWorkspace();
+  const { showAlert } = useAlert();
   const { monthlyBudget, setMonthlyBudget, expenses } = useExpenses();
   const [budgetInput, setBudgetInput] = useState(monthlyBudget.toString());
 
@@ -18,21 +20,21 @@ export default function BudgetSetupScreen() {
 
   const handleSaveBudget = async () => {
     if (netInfo.isConnected === false) {
-      Alert.alert('Offline', 'You cannot update budget while offline.');
+      showAlert('Offline', 'You cannot update budget while offline.');
       return;
     }
     const amount = parseFloat(budgetInput);
     if (isNaN(amount) || amount <= 0) {
-      Alert.alert('Invalid Input', 'Please enter a valid budget amount.');
+      showAlert('Invalid Input', 'Please enter a valid budget amount.');
       return;
     }
     const result = await setMonthlyBudget(amount);
     if (result.ok) {
-      Alert.alert('Success', 'Budget saved to Supabase for this workspace.');
+      showAlert('Success', 'Budget saved successfully for this workspace.');
     } else {
-      Alert.alert(
+      showAlert(
         'Could Not Save',
-        result.error ?? 'Run supabase/budgets_setup.sql in Supabase SQL Editor, then try again.'
+        result.error ?? 'Please try again.'
       );
     }
   };

@@ -20,6 +20,7 @@ type ExpenseContextType = {
   deleteExpense: (id: string) => Promise<void>;
   setMonthlyBudget: (budget: number) => Promise<{ ok: boolean; error?: string }>;
   loading: boolean;
+  refreshExpenses: () => Promise<void>;
 };
 
 export const ExpenseContext = createContext<ExpenseContextType | undefined>(undefined);
@@ -42,6 +43,12 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setLoading(false);
     }
   }, [workspace?.id]);
+
+  const refreshExpenses = async () => {
+    if (workspace?.id) {
+      await loadData(workspace.id);
+    }
+  };
 
   const loadData = async (workspaceId: string) => {
     try {
@@ -198,7 +205,7 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   return (
     <ExpenseContext.Provider
-      value={{ expenses, monthlyBudget, addExpense, deleteExpense, setMonthlyBudget, loading }}
+      value={{ expenses, monthlyBudget, addExpense, deleteExpense, setMonthlyBudget, loading, refreshExpenses }}
     >
       {children}
     </ExpenseContext.Provider>

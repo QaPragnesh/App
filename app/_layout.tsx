@@ -9,6 +9,7 @@ import { useEffect } from 'react';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { ExpenseProvider } from '../context/ExpenseContext';
 import { WorkspaceProvider, useWorkspace } from '../context/WorkspaceContext';
+import { AlertProvider } from '../context/AlertContext';
 
 export const unstable_settings = {
   anchor: 'welcome',
@@ -48,11 +49,13 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        <WorkspaceProvider>
-          <ExpenseProvider>
-            <RootNavigation />
-          </ExpenseProvider>
-        </WorkspaceProvider>
+        <AlertProvider>
+          <WorkspaceProvider>
+            <ExpenseProvider>
+              <RootNavigation />
+            </ExpenseProvider>
+          </WorkspaceProvider>
+        </AlertProvider>
         <StatusBar style="auto" />
       </ThemeProvider>
     </SafeAreaProvider>

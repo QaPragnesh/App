@@ -1,14 +1,20 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ScrollView } from 'react-native';
 import { useNetInfo } from '@react-native-community/netinfo';
 import { useExpenses } from '../../hooks/useExpenses';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useWorkspace } from '../../context/WorkspaceContext';
+import { useAlert } from '../../context/AlertContext';
+import NetInfo from '@react-native-community/netinfo';
 
 export default function HistoryScreen() {
   const netInfo = useNetInfo();
-  const { expenses, deleteExpense } = useExpenses();
+  const { expenses, deleteExpense, isOffline } = useExpenses();
+  const { isOwner } = useWorkspace();
+  const { showAlert, showConfirm } = useAlert();
   const [filter, setFilter] = useState('All');
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const categories = [
     { label: 'All', value: 'All' },
@@ -41,15 +47,22 @@ export default function HistoryScreen() {
     .filter(e => new Date(e.date).getMonth() === new Date().getMonth())
     .reduce((sum, e) => sum + e.amount, 0);
 
-  const handleDelete = (id: string) => {
-    if (netInfo.isConnected === false) {
-      Alert.alert('Offline', 'You cannot delete expenses while offline.');
+  const handleDelete = async (id: string) => {
+    const netState = await NetInfo.fetch();
+    if (!netState.isConnected || isOffline) {
+      showAlert('Offline', 'You cannot delete expenses while offline.');
       return;
     }
-    Alert.alert('Delete Expense', 'Are you sure you want to delete this expense?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => deleteExpense(id) },
-    ]);
+    showConfirm({
+      title: 'Delete Expense',
+      message: 'Are you sure you want to delete this expense?',
+      confirmText: 'Delete',
+      onConfirm: async () => {
+        setDeletingId(id);
+        await deleteExpense(id);
+        setDeletingId(null);
+      }
+    });
   };
 
   const formatDateShort = (dateStr: string) => {

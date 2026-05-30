@@ -52,7 +52,9 @@ type WorkspaceContextType = {
   ) => Promise<{ ok: boolean; error?: string }>;
   addMember: (memberName: string, memberPassword: string) => Promise<{ ok: boolean; error?: string }>;
   updateDisplayName: (newName: string) => Promise<{ ok: boolean; error?: string }>;
+  updatePassword: (newPassword: string) => Promise<{ ok: boolean; error?: string }>;
   deleteMember: (memberId: string) => Promise<{ ok: boolean; error?: string }>;
+  deleteWorkspace: () => Promise<{ ok: boolean; error?: string }>;
   refreshMembers: () => Promise<void>;
   leaveWorkspace: () => Promise<void>;
 };
@@ -134,14 +136,34 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
 
     try {
+      // Check if name is taken by the owner
+      const { data: wsData } = await supabase
+        .from('workspaces')
+        .select('owner_name')
+        .eq('id', workspace.id)
+        .single();
+        
+      if (wsData && (wsData.owner_name || '').trim().toLowerCase() === name.toLowerCase()) {
+        return { ok: false, error: 'This name is already taken by the workspace owner.' };
+      }
+
+      // Check if name is taken by another member
+      const { data: memberExists } = await supabase
+        .from('workspace_members')
+        .select('id')
+        .eq('workspace_id', workspace.id)
+        .ilike('name', name)
+        .maybeSingle();
+
+      if (memberExists) {
+        return { ok: false, error: 'A member with this name already exists in the workspace.' };
+      }
+
       const { error } = await supabase.from('workspace_members').insert([
         { workspace_id: workspace.id, name, password: pass },
       ]);
 
       if (error) {
-        if (error.code === '23505') {
-          return { ok: false, error: 'A member with this name already exists.' };
-        }
         throw error;
       }
 
@@ -164,6 +186,37 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
 
     const previousName = displayName;
+    
+    if (trimmed.toLowerCase() === previousName.toLowerCase()) {
+      // Allow saving the same name without error, even with different case
+    } else {
+      // Check if the new name is already taken
+      
+      // Check against owner name
+      if (!isOwner) {
+        const { data: wsData } = await supabase
+          .from('workspaces')
+          .select('owner_name')
+          .eq('id', workspace.id)
+          .single();
+          
+        if (wsData && (wsData.owner_name || '').trim().toLowerCase() === trimmed.toLowerCase()) {
+          return { ok: false, error: 'This name is already taken by the workspace owner.' };
+        }
+      }
+
+      // Check against members
+      const { data: memberExists } = await supabase
+        .from('workspace_members')
+        .select('id')
+        .eq('workspace_id', workspace.id)
+        .ilike('name', trimmed)
+        .maybeSingle();
+
+      if (memberExists) {
+        return { ok: false, error: 'A member with this name already exists in the workspace.' };
+      }
+    }
 
     try {
       if (isOwner) {
@@ -174,24 +227,51 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
         if (error) throw error;
       } else {
-        const memberId = await AsyncStorage.getItem('@member_id');
-        let error = null;
-
-        if (memberId) {
-          ({ error } = await supabase
+        let targetMemberId = await AsyncStorage.getItem('@member_id');
+        
+        // Fallback to fetch by name if local ID is missing
+        if (!targetMemberId) {
+          const { data: mData } = await supabase
             .from('workspace_members')
-            .update({ name: trimmed })
-            .eq('id', memberId)
-            .eq('workspace_id', workspace.id));
-        } else {
-          ({ error } = await supabase
-            .from('workspace_members')
-            .update({ name: trimmed })
+            .select('id')
             .eq('workspace_id', workspace.id)
-            .ilike('name', previousName));
+            .ilike('name', previousName)
+            .maybeSingle();
+            
+          if (mData?.id) {
+            targetMemberId = mData.id;
+            await AsyncStorage.setItem('@member_id', mData.id);
+          }
         }
 
-        if (error) throw error;
+        if (!targetMemberId) {
+          return { ok: false, error: 'Could not find your member record to update.' };
+        }
+
+        const { data: updData, error: updError } = await supabase
+          .from('workspace_members')
+          .update({ name: trimmed })
+          .eq('id', targetMemberId)
+          .eq('workspace_id', workspace.id)
+          .select();
+
+        if (updError) throw updError;
+        if (!updData || updData.length === 0) {
+          return { ok: false, error: 'Update failed! Row could not be modified in database.' };
+        }
+      }
+
+      // Update all past expenses to reflect the new name
+      if (trimmed !== previousName) {
+        const { error: expenseUpdateError } = await supabase
+          .from('expenses')
+          .update({ added_by: trimmed })
+          .eq('workspace_id', workspace.id)
+          .eq('added_by', previousName);
+          
+        if (expenseUpdateError) {
+          console.error('Failed to update name on past expenses:', expenseUpdateError);
+        }
       }
 
       await AsyncStorage.setItem('@display_name', trimmed);
@@ -200,6 +280,65 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     } catch (e: any) {
       console.error('Error updating name:', e?.message || e);
       return { ok: false, error: 'Could not update name. Please try again.' };
+    }
+  };
+
+  const updatePassword = async (newPassword: string): Promise<{ ok: boolean; error?: string }> => {
+    if (!workspace?.id) {
+      return { ok: false, error: 'No workspace selected.' };
+    }
+
+    const trimmed = newPassword.trim();
+    if (!trimmed) {
+      return { ok: false, error: 'Password cannot be empty.' };
+    }
+
+    try {
+      if (isOwner) {
+        const { error } = await supabase
+          .from('workspaces')
+          .update({ password: trimmed })
+          .eq('id', workspace.id);
+
+        if (error) throw error;
+      } else {
+        let targetMemberId = await AsyncStorage.getItem('@member_id');
+        
+        if (!targetMemberId) {
+          const { data: mData } = await supabase
+            .from('workspace_members')
+            .select('id')
+            .eq('workspace_id', workspace.id)
+            .ilike('name', displayName)
+            .maybeSingle();
+            
+          if (mData?.id) {
+            targetMemberId = mData.id;
+            await AsyncStorage.setItem('@member_id', mData.id);
+          }
+        }
+
+        if (!targetMemberId) {
+          return { ok: false, error: 'Could not find your member record to update.' };
+        }
+
+        const { data: updData, error: updError } = await supabase
+          .from('workspace_members')
+          .update({ password: trimmed })
+          .eq('id', targetMemberId)
+          .eq('workspace_id', workspace.id)
+          .select();
+
+        if (updError) throw updError;
+        if (!updData || updData.length === 0) {
+          return { ok: false, error: 'Update failed! Row could not be modified in database.' };
+        }
+      }
+
+      return { ok: true };
+    } catch (e: any) {
+      console.error('Error updating password:', e?.message || e);
+      return { ok: false, error: 'Could not update password. Please try again.' };
     }
   };
 
@@ -379,6 +518,43 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setMembers([]);
   };
 
+  const deleteWorkspace = async (): Promise<{ ok: boolean; error?: string }> => {
+    if (!workspace?.id || !isOwner) {
+      return { ok: false, error: 'Only the owner can delete the workspace.' };
+    }
+
+    try {
+      const id = workspace.id;
+
+      // 1. Delete expenses
+      const { error: expError } = await supabase.from('expenses').delete().eq('workspace_id', id);
+      if (expError) throw expError;
+
+      // 2. Delete budgets
+      const { error: budgError } = await supabase.from('budgets').delete().eq('workspace_id', id);
+      if (budgError) throw budgError;
+
+      // 3. Delete members
+      const { error: memError } = await supabase.from('workspace_members').delete().eq('workspace_id', id);
+      if (memError) throw memError;
+
+      // 4. Delete workspace
+      const { error: wsError } = await supabase.from('workspaces').delete().eq('id', id);
+      if (wsError) throw wsError;
+
+      // 5. Clear cached budget, expenses, and local chat
+      await AsyncStorage.removeItem(`@budget_${id}`);
+      await AsyncStorage.removeItem(`@expenses_${id}`);
+      await AsyncStorage.removeItem(`@chat_${id}`);
+
+      await leaveWorkspace();
+      return { ok: true };
+    } catch (e: any) {
+      console.error('Error deleting workspace:', e?.message || e);
+      return { ok: false, error: 'Could not delete workspace. Please try again.' };
+    }
+  };
+
   return (
     <WorkspaceContext.Provider
       value={{
@@ -391,7 +567,9 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         loginWorkspace,
         addMember,
         updateDisplayName,
+        updatePassword,
         deleteMember,
+        deleteWorkspace,
         refreshMembers,
         leaveWorkspace,
       }}
