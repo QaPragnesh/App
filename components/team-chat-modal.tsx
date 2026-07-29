@@ -14,11 +14,17 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useWorkspace } from '../context/WorkspaceContext';
 
+type Reaction = {
+  emoji: string;
+  sender: string;
+};
+
 type ChatMessage = {
   id: string;
   text: string;
   sender: string;
   timestamp: string;
+  reactions?: Reaction[];
 };
 
 type TeamChatModalProps = {
@@ -30,6 +36,8 @@ export function TeamChatModal({ visible, onClose }: TeamChatModalProps) {
   const { workspace, displayName } = useWorkspace();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState('');
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [selectedMessage, setSelectedMessage] = useState<ChatMessage | null>(null);
   const flatListRef = useRef<FlatList>(null);
 
   const chatKey = `@chat_${workspace?.id}`;
@@ -80,20 +88,85 @@ export function TeamChatModal({ visible, onClose }: TeamChatModalProps) {
     return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
+  const handleDeleteMessage = async (id: string) => {
+    const updatedMessages = messages.filter(m => m.id !== id);
+    setMessages(updatedMessages);
+    setSelectedMessage(null);
+    try {
+      await AsyncStorage.setItem(chatKey, JSON.stringify(updatedMessages));
+    } catch (e) {
+      console.error('Error deleting message:', e);
+    }
+  };
+
+  const handleReaction = async (id: string, emoji: string) => {
+    const updatedMessages = messages.map(m => {
+      if (m.id === id) {
+        const reactions: Reaction[] = (m.reactions || []).map(r => 
+           typeof r === 'string' ? { emoji: r, sender: 'unknown' } : r
+        );
+        
+        const existingReactionIndex = reactions.findIndex(r => r.emoji === emoji && r.sender === displayName);
+        
+        if (existingReactionIndex >= 0) {
+          reactions.splice(existingReactionIndex, 1);
+        } else {
+          reactions.push({ emoji, sender: displayName });
+        }
+        
+        return { ...m, reactions };
+      }
+      return m;
+    });
+    setMessages(updatedMessages as ChatMessage[]);
+    setSelectedMessage(null);
+    try {
+      await AsyncStorage.setItem(chatKey, JSON.stringify(updatedMessages));
+    } catch (e) {
+      console.error('Error adding reaction:', e);
+    }
+  };
+
   const renderMessage = ({ item }: { item: ChatMessage }) => {
     const isMe = item.sender === displayName;
+
+    const groupedReactions: { [emoji: string]: number } = {};
+    if (item.reactions) {
+      item.reactions.forEach(r => {
+        const emoji = typeof r === 'string' ? r : r.emoji;
+        groupedReactions[emoji] = (groupedReactions[emoji] || 0) + 1;
+      });
+    }
+
+    const reactionKeys = Object.keys(groupedReactions);
 
     return (
       <View style={[styles.messageWrapper, isMe ? styles.messageWrapperMe : styles.messageWrapperThem]}>
         {!isMe && <Text style={styles.senderName}>{item.sender}</Text>}
-        <View style={[styles.messageBubble, isMe ? styles.messageBubbleMe : styles.messageBubbleThem]}>
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onLongPress={() => setSelectedMessage(item)}
+          style={[styles.messageBubble, isMe ? styles.messageBubbleMe : styles.messageBubbleThem]}
+        >
           <Text style={[styles.messageText, isMe ? styles.messageTextMe : styles.messageTextThem]}>
             {item.text}
           </Text>
           <Text style={[styles.timeText, isMe ? styles.timeTextMe : styles.timeTextThem]}>
             {formatTime(item.timestamp)}
           </Text>
-        </View>
+          {reactionKeys.length > 0 && (
+            <View style={[styles.reactionsContainer, isMe ? styles.reactionsContainerMe : styles.reactionsContainerThem]}>
+              {reactionKeys.map((emoji) => (
+                <View key={emoji} style={styles.reactionBadge}>
+                  <Text style={styles.reactionText}>{emoji}</Text>
+                  {groupedReactions[emoji] > 1 && (
+                    <Text style={styles.reactionCount}>{groupedReactions[emoji]}</Text>
+                  )}
+                </View>
+              ))}
+            </View>
+          )}
+        </TouchableOpacity>
       </View>
     );
   };
@@ -133,7 +206,27 @@ export function TeamChatModal({ visible, onClose }: TeamChatModalProps) {
             }
           />
 
+          {showEmojiPicker && (
+            <View style={styles.quickEmojiRow}>
+              {['😀', '😂', '🔥', '👍', '❤️', '🎉', '😢', '😮'].map(emoji => (
+                <TouchableOpacity 
+                  key={emoji} 
+                  style={styles.quickEmojiBtn}
+                  onPress={() => setInputText(prev => prev + emoji)}
+                >
+                  <Text style={styles.quickEmojiText}>{emoji}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+
           <View style={styles.inputArea}>
+            <TouchableOpacity
+              style={styles.emojiToggleBtn}
+              onPress={() => setShowEmojiPicker(!showEmojiPicker)}
+            >
+              <Ionicons name="happy-outline" size={24} color="#94A3B8" />
+            </TouchableOpacity>
             <TextInput
               style={styles.inputBox}
               placeholder="Type a message..."
@@ -153,6 +246,32 @@ export function TeamChatModal({ visible, onClose }: TeamChatModalProps) {
           </View>
         </KeyboardAvoidingView>
       </View>
+
+      <Modal
+        visible={!!selectedMessage}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSelectedMessage(null)}
+      >
+        <TouchableOpacity style={styles.actionOverlay} activeOpacity={1} onPress={() => setSelectedMessage(null)}>
+          <View style={styles.actionSheet}>
+            <View style={styles.emojiRow}>
+              {['👍', '❤️', '😂', '😮', '😢', '🔥'].map(emoji => (
+                <TouchableOpacity key={emoji} onPress={() => selectedMessage && handleReaction(selectedMessage.id, emoji)} style={styles.emojiBtn}>
+                  <Text style={styles.emojiBtnText}>{emoji}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <TouchableOpacity 
+              style={styles.actionBtn} 
+              onPress={() => selectedMessage && handleDeleteMessage(selectedMessage.id)}
+            >
+              <Ionicons name="trash-outline" size={20} color="#EF4444" />
+              <Text style={styles.deleteText}>Delete Message</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </Modal>
   );
 }
@@ -273,6 +392,25 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     gap: 12,
   },
+  emojiToggleBtn: {
+    padding: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  quickEmojiRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingVertical: 12,
+    backgroundColor: '#1E1E1E',
+    borderTopWidth: 1,
+    borderTopColor: '#3A3A3A',
+  },
+  quickEmojiBtn: {
+    padding: 8,
+  },
+  quickEmojiText: {
+    fontSize: 22,
+  },
   inputBox: {
     flex: 1,
     backgroundColor: '#1E1E1E',
@@ -297,5 +435,80 @@ const styles = StyleSheet.create({
   },
   sendBtnDisabled: {
     backgroundColor: '#3A3A3A',
+  },
+  reactionsContainer: {
+    position: 'absolute',
+    bottom: -10,
+    flexDirection: 'row',
+    backgroundColor: '#1E1E1E',
+    borderRadius: 12,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderWidth: 1,
+    borderColor: '#3A3A3A',
+    gap: 4,
+    zIndex: 10,
+  },
+  reactionsContainerMe: {
+    left: 10,
+  },
+  reactionsContainerThem: {
+    right: 10,
+  },
+  reactionBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  reactionText: {
+    fontSize: 12,
+  },
+  reactionCount: {
+    fontSize: 10,
+    color: '#A3A3A3',
+    fontWeight: 'bold',
+  },
+  actionOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  actionSheet: {
+    backgroundColor: '#1E1E1E',
+    borderRadius: 16,
+    padding: 16,
+    width: '100%',
+    maxWidth: 320,
+    borderWidth: 1,
+    borderColor: '#3A3A3A',
+  },
+  emojiRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#3A3A3A',
+  },
+  emojiBtn: {
+    padding: 8,
+    backgroundColor: '#262626',
+    borderRadius: 20,
+  },
+  emojiBtnText: {
+    fontSize: 20,
+  },
+  actionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 8,
+  },
+  deleteText: {
+    color: '#EF4444',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

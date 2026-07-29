@@ -11,7 +11,7 @@ export default function TabLayout() {
     <View style={styles.root}>
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: '#F59E0B', // Orange color matching the dashboard progress bar
+        tabBarActiveTintColor: '#10B981', // Emerald green matching onboarding and theme
         tabBarInactiveTintColor: '#737373',
         headerShown: false,
         tabBarButton: HapticTab,

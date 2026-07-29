@@ -91,7 +91,7 @@ export default function BudgetSetupScreen() {
       <View style={styles.budgetCard}>
         <View style={styles.cardHeader}>
           <Text style={styles.budgetLabel}>SET MONTHLY BUDGET</Text>
-          <Ionicons name="wallet-outline" size={20} color="#D64545" />
+          <Ionicons name="wallet-outline" size={20} color="#10B981" />
         </View>
         
         <Text style={styles.budgetSubHeader}>Keep track of your spending and take control of your finances.</Text>
@@ -186,13 +186,17 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   budgetCard: {
-    backgroundColor: '#FFF0F0',
+    backgroundColor: '#1A1A1A',
     borderRadius: 28,
     padding: 24,
     marginBottom: 24,
-    borderWidth: 2,
-    borderColor: '#FFB3B3',
-    borderStyle: 'dashed',
+    borderWidth: 1,
+    borderColor: '#10B981',
+    shadowColor: '#10B981',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.4,
+    shadowRadius: 15,
+    elevation: 8,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -203,12 +207,12 @@ const styles = StyleSheet.create({
   budgetLabel: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: '#D64545',
+    color: '#10B981',
     letterSpacing: 1.2,
   },
   budgetSubHeader: {
     fontSize: 16,
-    color: '#4A1D1D',
+    color: '#A3A3A3',
     marginBottom: 24,
     fontWeight: '500',
     lineHeight: 22,
@@ -222,38 +226,33 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#262626',
     borderRadius: 16,
     paddingHorizontal: 16,
     paddingVertical: 12,
     marginRight: 12,
     borderWidth: 1,
-    borderColor: '#FFD1D1',
+    borderColor: '#3A3A3A',
   },
   currencySymbol: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: '#D64545',
+    color: '#10B981',
     marginRight: 8,
   },
   mainInput: {
     flex: 1,
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#121212',
+    color: '#FFFFFF',
   },
   saveButton: {
-    backgroundColor: '#D64545',
+    backgroundColor: '#10B981',
     borderRadius: 16,
     paddingVertical: 14,
     paddingHorizontal: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    elevation: 4,
-    shadowColor: '#D64545',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
   },
   saveButtonText: {
     fontSize: 14,
@@ -262,7 +261,7 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 12,
-    color: '#D64545',
+    color: '#6EE7B7',
     textAlign: 'center',
     marginTop: 4,
     fontWeight: '500',
