@@ -1,14 +1,14 @@
 import { Tabs } from 'expo-router';
 import React from 'react';
+import { View, StyleSheet } from 'react-native';
 
 import { HapticTab } from '@/components/haptic-tab';
+import { FloatingChatButton } from '@/components/floating-chat-button';
 import { MaterialIcons } from '@expo/vector-icons';
-import { useColorScheme } from '@/hooks/use-color-scheme';
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
-
   return (
+    <View style={styles.root}>
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: '#F59E0B', // Orange color matching the dashboard progress bar
@@ -61,13 +61,14 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <MaterialIcons size={26} name="person" color={color} />,
         }}
       />
-      <Tabs.Screen
-        name="chat"
-        options={{
-          title: 'Team Chat',
-          tabBarIcon: ({ color }) => <MaterialIcons size={24} name="chat" color={color} />,
-        }}
-      />
     </Tabs>
+    <FloatingChatButton />
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
+});

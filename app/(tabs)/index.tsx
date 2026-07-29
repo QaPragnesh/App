@@ -533,13 +533,13 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalCard: {
-    backgroundColor: '#1E1E1E',
+    backgroundColor: '#121212',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: 24,
     paddingBottom: 40,
     borderWidth: 1,
-    borderColor: '#2A2A2A',
+    borderColor: '#3A3A3A',
   },
   modalHeader: {
     flexDirection: 'row',

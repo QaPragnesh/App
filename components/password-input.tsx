@@ -51,9 +51,9 @@ const styles = StyleSheet.create({
   wrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#141414',
+    backgroundColor: '#262626',
     borderWidth: 1,
-    borderColor: '#2D2D2D',
+    borderColor: '#3A3A3A',
     borderRadius: 12,
     marginBottom: 16,
   },

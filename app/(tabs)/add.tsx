@@ -368,11 +368,13 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#262626',
+    backgroundColor: '#121212',
     borderTopLeftRadius: 30,
     borderTopRightRadius: 30,
     padding: 24,
     maxHeight: '80%',
+    borderWidth: 1,
+    borderColor: '#3A3A3A',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -386,7 +388,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   categoryOption: {
-    backgroundColor: '#1C1C1C',
+    backgroundColor: '#262626',
     borderRadius: 16,
     padding: 16,
     marginBottom: 12,

@@ -273,29 +273,26 @@ export default function ProfileScreen() {
           </>
         )}
 
-        {/* Logout Button */}
-        <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
-          <Ionicons name="log-out-outline" size={20} color="#FECACA" />
-          <Text style={styles.logoutText}>Logout</Text>
-        </TouchableOpacity>
-
-        {/* Delete Workspace Button */}
-        {isOwner && (
-          <TouchableOpacity 
-            style={styles.deleteWorkspaceBtn} 
-            onPress={handleDeleteWorkspace}
-            disabled={deletingWorkspace}
-          >
-            {deletingWorkspace ? (
-              <ActivityIndicator color="#FFFFFF" />
-            ) : (
-              <>
-                <Ionicons name="trash-outline" size={20} color="#FFFFFF" />
-                <Text style={styles.deleteWorkspaceBtnText}>Delete Workspace</Text>
-              </>
-            )}
+        {/* Logout & Delete links */}
+        <View style={styles.actionLinks}>
+          <TouchableOpacity onPress={handleLogout} style={styles.actionLink}>
+            <Text style={styles.actionLinkText}>Logout</Text>
           </TouchableOpacity>
-        )}
+
+          {isOwner && (
+            <TouchableOpacity
+              onPress={handleDeleteWorkspace}
+              disabled={deletingWorkspace}
+              style={styles.actionLink}
+            >
+              {deletingWorkspace ? (
+                <ActivityIndicator size="small" color="#EF4444" />
+              ) : (
+                <Text style={styles.actionLinkText}>Delete Workspace</Text>
+              )}
+            </TouchableOpacity>
+          )}
+        </View>
 
       </ScrollView>
 
@@ -444,7 +441,7 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0F172A', // Deeper, modern dark blue/slate background
+    backgroundColor: '#121212', // Same as dashboard
   },
   screenHeader: {
     paddingHorizontal: 24,
@@ -462,13 +459,13 @@ const styles = StyleSheet.create({
     paddingBottom: 100,
   },
   headerCard: {
-    backgroundColor: '#1E293B', // Rich slate card
+    backgroundColor: '#262626',
     borderRadius: 28,
     padding: 32,
     alignItems: 'center',
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#3A3A3A',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
@@ -479,7 +476,7 @@ const styles = StyleSheet.create({
     width: 88,
     height: 88,
     borderRadius: 44,
-    backgroundColor: '#0F172A',
+    backgroundColor: '#1E1E1E',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
@@ -558,12 +555,12 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   card: {
-    backgroundColor: '#1E293B',
+    backgroundColor: '#262626',
     borderRadius: 24,
     padding: 24,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#3A3A3A',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
@@ -601,12 +598,12 @@ const styles = StyleSheet.create({
   infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0F172A',
+    backgroundColor: '#1E1E1E',
     padding: 16,
     borderRadius: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#1E293B',
+    borderColor: '#3A3A3A',
   },
   infoIconBg: {
     width: 44,
@@ -678,19 +675,19 @@ const styles = StyleSheet.create({
   memberRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0F172A',
+    backgroundColor: '#1E1E1E',
     padding: 14,
     borderRadius: 16,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#1E293B',
+    borderColor: '#3A3A3A',
     gap: 14,
   },
   memberAvatar: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#1E293B',
+    backgroundColor: '#262626',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
@@ -730,56 +727,36 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     fontWeight: '500',
   },
-  logoutBtn: {
-    flexDirection: 'row',
-    backgroundColor: '#4A1515',
-    borderRadius: 16,
-    paddingVertical: 16,
-    justifyContent: 'center',
+  actionLinks: {
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#7F1D1D',
-    gap: 8,
+    marginTop: 24,
+    gap: 16,
+    paddingBottom: 8,
   },
-  logoutText: {
-    color: '#FECACA',
+  actionLink: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  actionLinkText: {
+    color: '#EF4444',
     fontSize: 16,
-    fontWeight: '700',
-  },
-  deleteWorkspaceBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
-    marginTop: 16,
-    gap: 8,
-    backgroundColor: '#EF4444',
-    borderRadius: 16,
-    shadowColor: '#EF4444',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  deleteWorkspaceBtnText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '800',
+    fontWeight: '600',
+    textDecorationLine: 'underline',
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.85)',
+    backgroundColor: 'rgba(0,0,0,0.7)',
     justifyContent: 'flex-end',
   },
   modalCard: {
-    backgroundColor: '#1E293B',
+    backgroundColor: '#121212',
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
     padding: 28,
     paddingBottom: 40,
     borderWidth: 1,
     borderBottomWidth: 0,
-    borderColor: '#334155',
+    borderColor: '#3A3A3A',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -790,12 +767,12 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 22,
     fontWeight: '800',
-    color: '#F8FAFC',
+    color: '#FFFFFF',
     letterSpacing: -0.3,
   },
   modalSubtitle: {
     fontSize: 14,
-    color: '#94A3B8',
+    color: '#A3A3A3',
     lineHeight: 22,
     marginBottom: 24,
   },
@@ -806,26 +783,29 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#94A3B8',
+    color: '#A3A3A3',
     letterSpacing: 1,
     marginBottom: 8,
   },
   modalInput: {
-    backgroundColor: '#0F172A',
+    backgroundColor: '#262626',
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#3A3A3A',
     borderRadius: 16,
     paddingHorizontal: 18,
     paddingVertical: 16,
-    color: '#F8FAFC',
+    color: '#FFFFFF',
     fontSize: 16,
     marginBottom: 20,
   },
   modalPasswordWrap: {
     marginBottom: 20,
+    backgroundColor: '#262626',
+    borderColor: '#3A3A3A',
   },
   modalPasswordInput: {
     backgroundColor: 'transparent',
+    color: '#FFFFFF',
   },
   modalSubmitBtn: {
     backgroundColor: '#10B981',
